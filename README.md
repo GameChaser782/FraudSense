@@ -85,16 +85,8 @@ credit-card-fraud/
 - Python for data processing
 - scikit-learn for model metrics
 
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Acknowledgments
 
 - Credit Card Fraud Dataset from [Kaggle](https://www.kaggle.com/datasets/mlg-ulb/creditcardfraud)
 - Insights from the [Fraud Detection Handbook](https://fraud-detection-handbook.github.io/fraud-detection-handbook/)
-- Temporian and Keras for the original model implementation 
