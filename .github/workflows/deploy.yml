@@ -1,0 +1,73 @@
+name: Train & Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'configs/**'
+      - 'train_all.py'
+      - 'export_static.py'
+      - 'webapp/**'
+  workflow_dispatch:   # allow manual trigger
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  train-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Cache venv
+        uses: actions/cache@v4
+        with:
+          path: venv
+          key: venv-${{ runner.os }}-${{ hashFiles('requirements.txt') }}
+          restore-keys: venv-${{ runner.os }}-
+
+      - name: Install dependencies
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install --upgrade pip -q
+          pip install -r requirements.txt -q
+          pip install torch --index-url https://download.pytorch.org/whl/cpu -q
+          pip install torch-geometric -q
+          pip install torch-scatter torch-sparse \
+            -f https://data.pyg.org/whl/torch-$(python -c "import torch; print(torch.__version__.split('+')[0])")+cpu.html -q
+          pip install pyarrow -q
+
+      - name: Download dataset
+        env:
+          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
+        run: |
+          source venv/bin/activate
+          python src/data/download.py
+
+      - name: Train pipeline (skip GNN for CI speed — use --skip-gnn to save ~20 min)
+        run: |
+          source venv/bin/activate
+          python train_all.py --skip-gnn
+
+      - name: Export static site
+        run: |
+          source venv/bin/activate
+          python export_static.py
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./docs
+          publish_branch: gh-pages

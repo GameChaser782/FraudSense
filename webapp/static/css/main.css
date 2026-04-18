@@ -1,0 +1,177 @@
+/* ── Base ──────────────────────────────────────────────────────────────────── */
+:root {
+  --accent:     #6366f1;
+  --accent-dim: #4f46e5;
+  --danger:     #ef4444;
+  --warn:       #f59e0b;
+  --ok:         #22c55e;
+  --bg:         #0f1117;
+  --bg-card:    #1a1d27;
+  --bg-section: #14171f;
+  --text:       #e2e8f0;
+  --text-muted: #94a3b8;
+  --border:     #2d3348;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, sans-serif;
+  margin: 0;
+}
+
+/* ── Navbar ─────────────────────────────────────────────────────────────────── */
+.navbar {
+  background: rgba(15,17,23,0.95);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(8px);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.navbar-brand { color: var(--accent) !important; letter-spacing: -0.5px; }
+.nav-link { color: var(--text-muted) !important; font-size: 0.875rem; transition: color .2s; }
+.nav-link:hover { color: var(--text) !important; }
+
+/* ── Hero ────────────────────────────────────────────────────────────────────── */
+.hero {
+  background: linear-gradient(135deg, #0f1117 0%, #1a1040 50%, #0f1117 100%);
+  border-bottom: 1px solid var(--border);
+  padding: 4rem 0;
+}
+.hero h1 { color: var(--text); }
+
+.stat-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem 1rem;
+  text-align: center;
+}
+.stat-val {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1.1;
+}
+.stat-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* ── Sections ───────────────────────────────────────────────────────────────── */
+section { background: var(--bg); }
+section.bg-dark-subtle { background: var(--bg-section); }
+
+.section-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+  color: var(--text);
+}
+
+/* ── Chart Cards ────────────────────────────────────────────────────────────── */
+.chart-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.5rem;
+}
+.chart-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 1rem;
+}
+
+/* ── Metric Pills ───────────────────────────────────────────────────────────── */
+.metric-pill {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.metric-name { color: var(--text-muted); font-size: 0.875rem; }
+.metric-val  { color: var(--accent); font-size: 1.25rem; font-weight: 700; }
+
+/* ── Fraud Ring Graph ───────────────────────────────────────────────────────── */
+#fraud-ring-graph {
+  width: 100%;
+  height: 480px;
+  background: var(--bg);
+  border-radius: 16px;
+}
+
+/* Ring summary table */
+#ring-summary-table table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+#ring-summary-table th { color: var(--text-muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; }
+#ring-summary-table td { padding: 8px 8px; border-bottom: 1px solid var(--border); color: var(--text); }
+#ring-summary-table .badge-ring { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+
+/* ── Prediction ─────────────────────────────────────────────────────────────── */
+.form-control, .form-select {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 8px;
+}
+.form-control:focus, .form-select:focus {
+  background: var(--bg);
+  border-color: var(--accent);
+  color: var(--text);
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.2);
+}
+.form-label { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 4px; }
+.form-select option { background: var(--bg-card); }
+
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  border-radius: 8px;
+  font-weight: 600;
+  padding: 10px;
+}
+.btn-primary:hover { background: var(--accent-dim); border-color: var(--accent-dim); }
+
+.risk-badge {
+  display: inline-block;
+  padding: 6px 20px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.05em;
+}
+.risk-very-high { background: rgba(239,68,68,0.15);  color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
+.risk-high      { background: rgba(249,115,22,0.15); color: #f97316; border: 1px solid rgba(249,115,22,0.3); }
+.risk-medium    { background: rgba(245,158,11,0.15); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+.risk-low       { background: rgba(34,197,94,0.15);  color: #22c55e; border: 1px solid rgba(34,197,94,0.3); }
+.risk-very-low  { background: rgba(34,197,94,0.10);  color: #16a34a; border: 1px solid rgba(34,197,94,0.2); }
+
+.fraud-prob { font-size: 2.5rem; font-weight: 800; color: var(--text); }
+
+.score-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.875rem;
+}
+.score-val   { font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+.score-label { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
+
+/* ── Plotly overrides ────────────────────────────────────────────────────────── */
+.js-plotly-plot .plotly .modebar { display: none !important; }
+
+/* ── Footer ─────────────────────────────────────────────────────────────────── */
+footer {
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+}

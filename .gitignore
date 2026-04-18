@@ -1,0 +1,29 @@
+# Secrets
+.env
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Large data files (never commit raw data)
+data/raw/
+data/processed/
+fraud_detection_cache.csv
+
+# Trained model artifacts (generated locally / in CI)
+saved_models/
+*.joblib
+*.pt
+
+# Old project files
+index.html
+styles/
+scripts/
+
+# Notebooks
+notebooks/.ipynb_checkpoints/
+
+# OS
+.DS_Store

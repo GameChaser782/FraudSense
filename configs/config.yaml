@@ -1,0 +1,54 @@
+data:
+  raw_dir: data/raw
+  processed_dir: data/processed
+  train_file: data/processed/train.parquet
+  val_file: data/processed/val.parquet
+  test_file: data/processed/test.parquet
+  graph_file: data/processed/graph_data.pt
+  fraud_rings_file: data/processed/fraud_rings.json
+
+model:
+  saved_dir: saved_models
+  lgbm_path: saved_models/lgbm_model.joblib
+  gnn_path: saved_models/gnn_model.pt
+  meta_path: saved_models/meta_learner.joblib
+  metrics_path: saved_models/metrics.json
+
+# Temporal split ratios (by TransactionDT ordering)
+split:
+  train_ratio: 0.70
+  val_ratio: 0.15
+  # test is remainder
+
+lgbm:
+  n_estimators: 1000
+  learning_rate: 0.05
+  num_leaves: 63
+  max_depth: -1
+  min_child_samples: 20
+  feature_fraction: 0.8
+  bagging_fraction: 0.8
+  bagging_freq: 5
+  reg_alpha: 0.1
+  reg_lambda: 0.1
+  early_stopping_rounds: 50
+  class_weight: balanced
+
+gnn:
+  hidden_channels: 128
+  num_layers: 3
+  heads: 4            # GAT attention heads
+  dropout: 0.3
+  lr: 0.001
+  epochs: 50
+  batch_size: 4096
+  num_neighbors: [10, 10, 5]   # per layer
+
+fraud_ring:
+  resolution: 1.0     # Louvain resolution parameter
+  min_community_size: 3
+  min_fraud_rate: 0.3  # communities with >30% fraud rate flagged
+
+webapp:
+  host: 0.0.0.0
+  port: 8000
