@@ -50,8 +50,12 @@ def main():
         if src_path.exists():
             shutil.copy(src_path, dst)
             print(f"Copied {src_path.name} → {dst.relative_to(ROOT)}")
+            if dst.name == "fraud_rings.json":
+                alias = dst.with_name("fraud-rings.json")
+                shutil.copy(dst, alias)
+                print(f"Copied {dst.name} → {alias.relative_to(ROOT)}")
         else:
-            print(f"WARNING: {src_path} not found — run train_all.py first")
+            print(f"WARNING: {src_path} not found - run train_all.py first")
 
     # Rewrite index.html: replace /api/* with /data/*.json
     template_candidates = [
@@ -77,7 +81,7 @@ def main():
     # Write static-mode JS (replaces /api/* calls with /data/*.json)
     static_js_path = DOCS / "static" / "js" / "config.js"
     static_js_path.write_text("""
-// Static mode — fetch from pre-generated JSON files instead of FastAPI
+// Static mode - fetch from pre-generated JSON files instead of FastAPI
 window.FRAUDSENSE_STATIC = true;
 window.FRAUDSENSE_BASE   = '/FraudSense';
 """)

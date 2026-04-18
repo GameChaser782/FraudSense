@@ -187,7 +187,7 @@ async function loadFraudRings() {
     return;
   }
 
-  setText('stat-rings', data.summary?.length ?? '—');
+  setText('stat-rings', data.summary?.length ?? '-');
   renderRingTable(data.summary);
   renderRingGraphPlotly(data);
 
@@ -442,4 +442,4 @@ function setText(id, val) {
   const el = document.getElementById(id);
   if (el) el.textContent = val;
 }
-function fmt(v) { return v != null ? v.toFixed(4) : '—'; }
+function fmt(v) { return v != null ? v.toFixed(4) : '-'; }
