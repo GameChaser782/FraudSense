@@ -17,6 +17,10 @@ fraud_detection_cache.csv
 saved_models/
 *.joblib
 *.pt
+!saved_models/
+!saved_models/*.joblib
+!saved_models/*.pt
+!saved_models/*.json
 
 # Old project files
 index.html
