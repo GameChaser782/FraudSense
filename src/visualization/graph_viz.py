@@ -42,18 +42,32 @@ def build_card_cooccurrence_graph(df: pd.DataFrame) -> nx.Graph:
         tx_count=("isFraud", "count"),
     ).reset_index()
 
+    # Only keep cards with at least 2 transactions to avoid noise
+    card_stats = card_stats[card_stats["tx_count"] >= 2]
+    valid_cards = set(card_stats["card1"].tolist())
+    df = df[df["card1"].isin(valid_cards)]
+
     for _, row in card_stats.iterrows():
         G.add_node(int(row["card1"]),
                    fraud_rate=float(row["fraud_rate"]),
                    tx_count=int(row["tx_count"]))
 
-    # Connect cards that share P_emaildomain
-    for entity_col in ["P_emaildomain", "DeviceType"]:
+    # Connect cards sharing the same entity value (email/device/addr).
+    # Skip groups larger than MAX_GROUP_SIZE — large groups (e.g. all gmail.com
+    # users) are not indicative of fraud rings and produce O(n²) edges.
+    MAX_GROUP_SIZE = 20
+
+    for entity_col in ["P_emaildomain", "addr1", "DeviceType"]:
         if entity_col not in df.columns:
             continue
-        grp = df.dropna(subset=[entity_col, "card1"]).groupby(entity_col)["card1"].apply(list)
+        grp = df.dropna(subset=[entity_col, "card1"]).groupby(entity_col)["card1"].apply(
+            lambda x: list(set(x.tolist()))
+        )
+        skipped = 0
         for cards in grp:
-            cards = list(set(cards))
+            if len(cards) > MAX_GROUP_SIZE:
+                skipped += 1
+                continue
             for i in range(len(cards)):
                 for j in range(i + 1, len(cards)):
                     c1, c2 = int(cards[i]), int(cards[j])
@@ -61,29 +75,49 @@ def build_card_cooccurrence_graph(df: pd.DataFrame) -> nx.Graph:
                         G[c1][c2]["weight"] += 1
                     else:
                         G.add_edge(c1, c2, weight=1)
+        if skipped:
+            print(f"  {entity_col}: skipped {skipped} large groups (>{MAX_GROUP_SIZE} cards)")
 
     return G
 
 
 def detect_fraud_rings(G: nx.Graph, min_size: int, min_fraud_rate: float) -> list:
     """Run Louvain community detection and return high-fraud communities."""
-    partition = community_louvain.best_partition(G, weight="weight", random_state=42)
+    # Only run on the connected subgraph — isolated nodes form trivial communities
+    connected_nodes = [n for n, d in G.degree() if d > 0]
+    G_conn = G.subgraph(connected_nodes)
+    print(f"  Connected subgraph: {G_conn.number_of_nodes()} nodes, {G_conn.number_of_edges()} edges")
+
+    if G_conn.number_of_nodes() == 0:
+        print("  No connected nodes — graph too sparse.")
+        return []
+
+    partition = community_louvain.best_partition(G_conn, weight="weight", random_state=42)
 
     communities = defaultdict(list)
     for node, comm_id in partition.items():
         communities[comm_id].append(node)
 
-    rings = []
+    # Debug: show distribution of community fraud rates
+    all_rates = []
+    for comm_id, nodes in communities.items():
+        if len(nodes) >= min_size:
+            rates = [G.nodes[n].get("fraud_rate", 0) for n in nodes]
+            all_rates.append((len(nodes), float(np.mean(rates))))
+    if all_rates:
+        rates_only = [r for _, r in all_rates]
+        print(f"  Communities (size>={min_size}): {len(all_rates)} total | "
+              f"fraud rate range: {min(rates_only):.3f}–{max(rates_only):.3f} | "
+              f"median: {float(np.median(rates_only)):.3f}")
+
+    candidates = []
     for comm_id, nodes in communities.items():
         if len(nodes) < min_size:
             continue
         fraud_rates = [G.nodes[n].get("fraud_rate", 0) for n in nodes]
         avg_fraud_rate = float(np.mean(fraud_rates))
-        if avg_fraud_rate < min_fraud_rate:
-            continue
-
         subgraph = G.subgraph(nodes)
-        rings.append({
+        candidates.append({
             "community_id":   comm_id,
             "size":           len(nodes),
             "avg_fraud_rate": round(avg_fraud_rate, 4),
@@ -91,7 +125,13 @@ def detect_fraud_rings(G: nx.Graph, min_size: int, min_fraud_rate: float) -> lis
             "edges":          list(subgraph.edges(data=True)),
         })
 
-    rings.sort(key=lambda r: r["avg_fraud_rate"], reverse=True)
+    # Sort by fraud rate descending, return top 5 above min_fraud_rate
+    # If fewer than 3 pass the threshold, fall back to top 5 by fraud rate
+    candidates.sort(key=lambda r: r["avg_fraud_rate"], reverse=True)
+    rings = [r for r in candidates if r["avg_fraud_rate"] >= min_fraud_rate]
+    if len(rings) < 3:
+        rings = candidates[:5]  # fallback: top 5 regardless of threshold
+
     return rings
 
 

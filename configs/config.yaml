@@ -40,14 +40,15 @@ gnn:
   heads: 4            # GAT attention heads
   dropout: 0.3
   lr: 0.001
-  epochs: 50
-  batch_size: 4096
-  num_neighbors: [10, 10, 5]   # per layer
+  epochs: 60
+  early_stopping_patience: 7
+  batch_size: 16384
+  num_neighbors: [10, 5, 5]    # reduced per-layer sampling → faster batches
 
 fraud_ring:
   resolution: 1.0     # Louvain resolution parameter
   min_community_size: 3
-  min_fraud_rate: 0.3  # communities with >30% fraud rate flagged
+  min_fraud_rate: 0.08  # ~2.3x the baseline fraud rate of 3.5%
 
 webapp:
   host: 0.0.0.0
