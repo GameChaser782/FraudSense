@@ -29,6 +29,33 @@ def load_config():
         return yaml.safe_load(f)
 
 
+def predict_with_loader(model, graph, device, batch_size, num_neighbors, num_workers):
+    """Predict transaction fraud probabilities with bounded neighborhoods."""
+    input_nodes = ("transaction", torch.arange(graph["transaction"].x.size(0)))
+    loader = NeighborLoader(
+        graph,
+        num_neighbors={key: num_neighbors for key in graph.edge_types},
+        batch_size=batch_size,
+        input_nodes=input_nodes,
+        shuffle=False,
+        num_workers=num_workers,
+        pin_memory=(device.type == "cuda"),
+    )
+
+    preds = np.empty(graph["transaction"].x.size(0), dtype=np.float32)
+    model.eval()
+    with torch.no_grad():
+        for batch in loader:
+            batch = batch.to(device)
+            logits = model(batch.x_dict, batch.edge_index_dict)
+            seed_size = batch["transaction"].batch_size
+            probs = torch.sigmoid(logits[:seed_size]).detach().cpu().numpy()
+            n_id = batch["transaction"].n_id[:seed_size].cpu().numpy()
+            preds[n_id] = probs
+
+    return preds
+
+
 # ── Focal Loss ────────────────────────────────────────────────────────────────
 class FocalLoss(nn.Module):
     def __init__(self, alpha: float = 0.25, gamma: float = 2.0):
@@ -95,6 +122,7 @@ def train():
     cfg = load_config()
     os.makedirs(cfg["model"]["saved_dir"], exist_ok=True)
     gnn_cfg = cfg["gnn"]
+    num_workers = gnn_cfg.get("num_workers", 0)
 
     graphs = torch.load(cfg["data"]["graph_file"], weights_only=False)
     train_graph = graphs["train"]
@@ -118,9 +146,13 @@ def train():
         in_channels_dict=in_channels_dict,
     ).to(device)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=gnn_cfg["lr"])
+    optimizer = torch.optim.Adam(model.parameters(), lr=gnn_cfg["lr"],
+                                 weight_decay=1e-5)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer, mode="max", factor=0.5, patience=4, min_lr=1e-5,
+    )
 
-    # Fraud rate ~3.5% → weight fraud nodes ~28x more in focal loss alpha
+    # Fraud rate ~3.5% → weight fraud nodes more in focal loss alpha
     labels     = train_graph["transaction"].y
     n_fraud    = int(labels.sum().item())
     n_legit    = int((labels == 0).sum().item())
@@ -129,11 +161,11 @@ def train():
     criterion = FocalLoss(alpha=focal_alpha, gamma=2.0)
     print(f"Class ratio (legit:fraud) = {pos_weight:.1f}:1  |  focal alpha = {focal_alpha:.3f}")
 
-    # Oversample fraud seed nodes: repeat fraud indices ~pos_weight times
-    # so NeighborLoader sees roughly balanced seed distribution per epoch
+    # Oversample fraud seed nodes: cap at 10x to avoid over-optimising
+    # for fraud patterns and hurting generalisation
     fraud_idx = labels.nonzero(as_tuple=True)[0]
     legit_idx = (labels == 0).nonzero(as_tuple=True)[0]
-    oversample_factor = max(1, int(round(pos_weight)))
+    oversample_factor = min(10, max(1, int(round(pos_weight))))
     oversampled_fraud = fraud_idx.repeat(oversample_factor)
     input_nodes = torch.cat([legit_idx, oversampled_fraud])
     input_nodes = input_nodes[torch.randperm(len(input_nodes))]
@@ -147,7 +179,7 @@ def train():
         num_neighbors={key: gnn_cfg["num_neighbors"] for key in train_graph.edge_types},
         batch_size=gnn_cfg["batch_size"],
         input_nodes=("transaction", input_nodes),
-        num_workers=4,
+        num_workers=num_workers,
         pin_memory=(device.type == "cuda"),
     )
 
@@ -171,17 +203,24 @@ def train():
             optimizer.step()
             total_loss += loss.item()
 
-        # Validation: run on CPU to avoid OOM on small GPUs (4GB)
+        # Validation uses the same bounded neighborhood sampling as training.
+        # This avoids softmax attention over extremely high-degree reverse edges.
         model.eval()
-        model.cpu()
-        with torch.no_grad():
-            val_logits = model(val_graph.x_dict, val_graph.edge_index_dict)
-            val_probs  = torch.sigmoid(val_logits).numpy()
-            val_labels = val_graph["transaction"].y.numpy()
-            val_auc    = roc_auc_score(val_labels, val_probs)
-        model.to(device)
+        val_probs = predict_with_loader(
+            model,
+            val_graph,
+            device,
+            batch_size=gnn_cfg["batch_size"],
+            num_neighbors=gnn_cfg["num_neighbors"],
+            num_workers=num_workers,
+        )
+        val_labels = val_graph["transaction"].y.cpu().numpy()
+        val_auc = roc_auc_score(val_labels, val_probs)
 
         avg_loss = total_loss / len(train_loader)
+
+        scheduler.step(val_auc)
+        current_lr = optimizer.param_groups[0]["lr"]
 
         if val_auc > best_val_auc:
             best_val_auc = val_auc
@@ -192,7 +231,7 @@ def train():
             no_improve += 1
             tag = f" (no improve {no_improve}/{patience})"
 
-        print(f"Epoch {epoch:02d} | Loss: {avg_loss:.4f} | Val AUC: {val_auc:.4f}{tag}")
+        print(f"Epoch {epoch:02d} | Loss: {avg_loss:.4f} | Val AUC: {val_auc:.4f} | LR: {current_lr:.2e}{tag}")
 
         if no_improve >= patience:
             print(f"\nEarly stopping at epoch {epoch} — no improvement for {patience} epochs.")
@@ -208,16 +247,27 @@ def train():
         "config": gnn_cfg,
     }, cfg["model"]["gnn_path"])
 
-    # Save val/test predictions on CPU to avoid OOM
+    # Save val/test predictions with bounded neighborhoods to match validation.
     model.load_state_dict(best_state)
-    model.cpu()
+    model.to(device)
     model.eval()
-    with torch.no_grad():
-        val_logits  = model(val_graph.x_dict, val_graph.edge_index_dict)
-        val_probs   = torch.sigmoid(val_logits).numpy()
-        test_graph  = graphs["test"]
-        test_logits = model(test_graph.x_dict, test_graph.edge_index_dict)
-        test_probs  = torch.sigmoid(test_logits).numpy()
+    val_probs = predict_with_loader(
+        model,
+        val_graph,
+        device,
+        batch_size=gnn_cfg["batch_size"],
+        num_neighbors=gnn_cfg["num_neighbors"],
+        num_workers=num_workers,
+    )
+    test_graph = graphs["test"]
+    test_probs = predict_with_loader(
+        model,
+        test_graph,
+        device,
+        batch_size=gnn_cfg["batch_size"],
+        num_neighbors=gnn_cfg["num_neighbors"],
+        num_workers=num_workers,
+    )
 
     np.save(cfg["data"]["processed_dir"] + "/gnn_val_preds.npy",  val_probs)
     np.save(cfg["data"]["processed_dir"] + "/gnn_test_preds.npy", test_probs)

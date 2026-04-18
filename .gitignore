@@ -1,5 +1,6 @@
 # Secrets
 .env
+.codex
 
 # Python
 venv/

@@ -36,14 +36,14 @@ lgbm:
 
 gnn:
   hidden_channels: 128
-  num_layers: 3
+  num_layers: 2
   heads: 4            # GAT attention heads
   dropout: 0.3
   lr: 0.001
-  epochs: 60
-  early_stopping_patience: 7
+  epochs: 80
+  early_stopping_patience: 12
   batch_size: 16384
-  num_neighbors: [10, 5, 5]    # reduced per-layer sampling → faster batches
+  num_neighbors: [15, 10]      # 2-layer sampling
 
 fraud_ring:
   resolution: 1.0     # Louvain resolution parameter
