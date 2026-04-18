@@ -1,15 +1,11 @@
-name: Train & Deploy to GitHub Pages
+name: Deploy GitHub Pages
 
 on:
   push:
     branches: [main]
     paths:
-      - 'src/**'
-      - 'configs/**'
-      - 'train_all.py'
-      - 'export_static.py'
-      - 'webapp/**'
-      - 'requirements-ci.txt'
+      - 'docs/**'
+      - '.github/workflows/deploy.yml'
   workflow_dispatch:   # allow manual trigger
 
 permissions:
@@ -18,56 +14,20 @@ permissions:
   id-token: write
 
 jobs:
-  train-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.13
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-
-      - name: Cache venv
-        uses: actions/cache@v4
-        with:
-          path: venv
-          key: venv-${{ runner.os }}-py313-${{ hashFiles('requirements-ci.txt') }}
-          restore-keys: venv-${{ runner.os }}-py313-
-
-      - name: Install dependencies
+      - name: Verify docs bundle exists
         run: |
-          python -m venv venv
-          source venv/bin/activate
-          pip install --upgrade pip -q
-          # CI-safe project dependencies
-          pip install -r requirements-ci.txt -q
-          # CPU-only PyTorch (no CUDA needed for CI training)
-          pip install torch --index-url https://download.pytorch.org/whl/cpu -q
-          # PyG + sparse ops for CPU
-          TORCH_VER=$(python -c "import torch; print(torch.__version__.split('+')[0])")
-          pip install torch-geometric -q
-          pip install torch-scatter torch-sparse \
-            -f https://data.pyg.org/whl/torch-${TORCH_VER}+cpu.html -q
-
-      - name: Download dataset
-        env:
-          KAGGLE_API_TOKEN: ${{ secrets.KAGGLE_API_TOKEN }}
-        run: |
-          source venv/bin/activate
-          python src/data/download.py
-
-      - name: Train pipeline (CPU — GNN skipped for CI speed)
-        run: |
-          source venv/bin/activate
-          python train_all.py --skip-gnn
-
-      - name: Export static site
-        run: |
-          source venv/bin/activate
-          python export_static.py
+          test -f docs/index.html
+          test -f docs/static/js/main.js
+          test -f docs/data/metrics.json
+          test -f docs/data/shap_data.json
+          test -f docs/data/fraud_rings.json
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4

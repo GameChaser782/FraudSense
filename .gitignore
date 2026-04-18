@@ -21,6 +21,7 @@ saved_models/
 # Old project files
 index.html
 !webapp/templates/index.html
+!docs/index.html
 styles/
 scripts/
 
