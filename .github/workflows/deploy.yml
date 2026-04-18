@@ -5,6 +5,8 @@ on:
     branches: [main]
     paths:
       - 'docs/**'
+      - 'webapp/**'
+      - 'export_static.py'
       - '.github/workflows/deploy.yml'
   workflow_dispatch:   # allow manual trigger
 
