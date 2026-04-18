@@ -1,164 +1,417 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Credit Card Fraud Detection - Interactive Analysis</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="styles/main.css">
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FraudSense — Graph Neural Network Fraud Detection</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/FraudSense/static/css/main.css" />
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark fixed-top">
-        <div class="container">
-            <a class="navbar-brand" href="#">Credit Card Fraud Detection</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a class="nav-link" href="#overview">Overview</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#data-analysis">Data Analysis</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#visualizations">Visualizations</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#model">Fraud Detection Model</a>
-                    </li>
-                </ul>
-            </div>
+
+<!-- ── Nav ──────────────────────────────────────────────────────────────── -->
+<nav class="navbar navbar-expand-lg sticky-top">
+  <div class="container-fluid px-4">
+    <span class="navbar-brand">FraudSense</span>
+    <div class="navbar-nav ms-auto flex-row gap-4 d-none d-md-flex">
+      <a class="nav-link" href="#problem">Problem</a>
+      <a class="nav-link" href="#dataset">Dataset</a>
+      <a class="nav-link" href="#approach">Approach</a>
+      <a class="nav-link" href="#results">Results</a>
+      <a class="nav-link" href="#fraud-rings">Fraud Rings</a>
+      <a class="nav-link" href="#predict">Live Demo</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ── Hero ─────────────────────────────────────────────────────────────── -->
+<section class="hero">
+  <div class="container text-center">
+    <div class="badge-row mb-3">
+      <span class="tech-badge">PyTorch Geometric</span>
+      <span class="tech-badge">LightGBM</span>
+      <span class="tech-badge">Graph Attention Networks</span>
+      <span class="tech-badge">IEEE-CIS Dataset</span>
+      <span class="tech-badge">SHAP</span>
+    </div>
+    <h1 class="hero-title">Graph Neural Network<br/>Credit Card Fraud Detection</h1>
+    <p class="hero-sub">
+      Detecting fraud rings by modeling 590K transactions as a heterogeneous graph.<br/>
+      GNN + LightGBM stacking ensemble with Louvain community detection.
+    </p>
+    <div class="row justify-content-center mt-5 g-3">
+      <div class="col-6 col-md-2"><div class="stat-card"><div class="stat-val" id="stat-auc">—</div><div class="stat-label">Ensemble AUC</div></div></div>
+      <div class="col-6 col-md-2"><div class="stat-card"><div class="stat-val" id="stat-prauc">—</div><div class="stat-label">PR-AUC</div></div></div>
+      <div class="col-6 col-md-2"><div class="stat-card"><div class="stat-val">590K</div><div class="stat-label">Transactions</div></div></div>
+      <div class="col-6 col-md-2"><div class="stat-card"><div class="stat-val">393</div><div class="stat-label">Features</div></div></div>
+      <div class="col-6 col-md-2"><div class="stat-card"><div class="stat-val" id="stat-rings">—</div><div class="stat-label">Fraud Rings</div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Problem ───────────────────────────────────────────────────────────── -->
+<section id="problem" class="section-alt">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">01 — The Problem</span>
+      <h2 class="section-title">Why Credit Card Fraud Is a Hard ML Problem</h2>
+    </div>
+    <div class="row g-4 mt-2">
+      <div class="col-md-4">
+        <div class="problem-card">
+          <div class="problem-icon">⚖️</div>
+          <h5>Severe Class Imbalance</h5>
+          <p>Only <strong>3.5%</strong> of transactions are fraudulent. A naive classifier predicting "legit" for everything achieves 96.5% accuracy — making standard accuracy a useless metric. We need PR-AUC and F1 at an optimised threshold.</p>
         </div>
-    </nav>
-
-    <main class="container mt-5 pt-5">
-        <!-- Overview Section -->
-        <section id="overview" class="section">
-            <h1>Understanding Credit Card Fraud Detection</h1>
-            <div class="row">
-                <div class="col-md-8">
-                    <p class="lead">
-                        Credit card fraud is a significant challenge in the financial industry, with billions lost annually to fraudulent transactions. 
-                        This interactive project demonstrates how machine learning and data analysis can help detect and prevent fraud.
-                    </p>
-                    <div class="key-stats">
-                        <div class="stat-card">
-                            <h3>€1.89B</h3>
-                            <p>Estimated fraud losses in Europe (2019)</p>
-                        </div>
-                        <div class="stat-card">
-                            <h3>3.6%</h3>
-                            <p>Global commerce revenue lost to fraud</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Data Analysis Section -->
-        <section id="data-analysis" class="section">
-            <h2>Data Analysis</h2>
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-body">
-                            <h3>Dataset Overview</h3>
-                            <div id="dataset-stats"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-body">
-                            <h3>Transaction Distribution</h3>
-                            <div id="transaction-dist"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Visualizations Section -->
-        <section id="visualizations" class="section">
-            <h2>Interactive Visualizations</h2>
-            <div class="row">
-                <div class="col-md-12">
-                    <div class="card">
-                        <div class="card-body">
-                            <h3>Feature Correlations</h3>
-                            <div id="correlation-heatmap"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="row mt-4">
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-body">
-                            <h3>Transaction Amount Distribution</h3>
-                            <div id="amount-dist"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-body">
-                            <h3>Time-based Analysis</h3>
-                            <div id="time-analysis"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Model Section -->
-        <section id="model" class="section">
-            <h2>Fraud Detection Model</h2>
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-body">
-                            <h3>Model Performance</h3>
-                            <div id="model-metrics"></div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-body">
-                            <h3>Try the Model</h3>
-                            <form id="prediction-form">
-                                <div class="mb-3">
-                                    <label for="amount" class="form-label">Transaction Amount</label>
-                                    <input type="number" class="form-control" id="amount" required>
-                                </div>
-                                <div class="mb-3">
-                                    <label for="time" class="form-label">Time of Transaction</label>
-                                    <input type="time" class="form-control" id="time" required>
-                                </div>
-                                <button type="submit" class="btn btn-primary">Predict Fraud Risk</button>
-                            </form>
-                            <div id="prediction-result" class="mt-3"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <footer class="footer mt-5 py-3 bg-light">
-        <div class="container text-center">
-            <p>Created by GameChaser782 | <a href="https://github.com/gamechaser782">GitHub</a></p>
+      </div>
+      <div class="col-md-4">
+        <div class="problem-card">
+          <div class="problem-icon">🕸️</div>
+          <h5>Fraud Rings Are Relational</h5>
+          <p>Fraudsters reuse devices, email domains, and billing addresses across multiple stolen cards. Traditional tabular models treat each transaction independently — they miss the <em>network structure</em> that exposes organised rings.</p>
         </div>
-    </footer>
+      </div>
+      <div class="col-md-4">
+        <div class="problem-card">
+          <div class="problem-icon">⏱️</div>
+          <h5>Temporal Data Leakage</h5>
+          <p>Random train/test splits cause data leakage — future transaction patterns inform past predictions. Real fraud detection must use <strong>strict temporal splits</strong>: train on early transactions, test on later ones.</p>
+        </div>
+      </div>
+    </div>
+    <div class="callout mt-4">
+      <strong>Real-world impact:</strong> Card fraud cost the global economy over <strong>$32 billion</strong> in 2023. Payment networks like Visa, Mastercard, and Amex score every transaction in <strong>&lt;100ms</strong> — the model must be fast and explainable for compliance.
+    </div>
+  </div>
+</section>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="scripts/visualizations.js"></script>
-    <script src="scripts/model.js"></script>
-    <script src="scripts/main.js"></script>
+<!-- ── Dataset ───────────────────────────────────────────────────────────── -->
+<section id="dataset" class="section-main">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">02 — Dataset</span>
+      <h2 class="section-title">IEEE-CIS Fraud Detection Dataset</h2>
+    </div>
+    <p class="section-desc">Real-world transaction data provided by Vesta Corporation for the IEEE Computational Intelligence Society (CIS) Fraud Detection competition. One of the most feature-rich public fraud datasets available.</p>
+    <div class="row g-3 mt-2">
+      <div class="col-6 col-md-3"><div class="data-stat"><span class="ds-val">590,540</span><span class="ds-label">Total transactions</span></div></div>
+      <div class="col-6 col-md-3"><div class="data-stat"><span class="ds-val">3.5%</span><span class="ds-label">Fraud rate</span></div></div>
+      <div class="col-6 col-md-3"><div class="data-stat"><span class="ds-val">393</span><span class="ds-label">Transaction features</span></div></div>
+      <div class="col-6 col-md-3"><div class="data-stat"><span class="ds-val">41</span><span class="ds-label">Identity features</span></div></div>
+    </div>
+    <div class="row g-4 mt-1">
+      <div class="col-md-6">
+        <div class="chart-card">
+          <div class="chart-title">Feature Groups</div>
+          <div class="feat-group-list">
+            <div class="feat-group"><span class="fg-dot" style="background:#6366f1"></span><strong>V1–V339</strong> — Vesta engineered features (anonymised risk signals)</div>
+            <div class="feat-group"><span class="fg-dot" style="background:#10b981"></span><strong>card1–card6</strong> — Card type, bank, category (graph linkage nodes)</div>
+            <div class="feat-group"><span class="fg-dot" style="background:#f59e0b"></span><strong>addr1, addr2</strong> — Billing/shipping address codes (graph linkage)</div>
+            <div class="feat-group"><span class="fg-dot" style="background:#ef4444"></span><strong>P_emaildomain, R_emaildomain</strong> — Purchaser/recipient email (graph linkage)</div>
+            <div class="feat-group"><span class="fg-dot" style="background:#38bdf8"></span><strong>DeviceType, DeviceInfo, id_*</strong> — Device fingerprint (identity features)</div>
+            <div class="feat-group"><span class="fg-dot" style="background:#a78bfa"></span><strong>TransactionAmt, ProductCD, dist*</strong> — Transaction metadata</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="chart-card">
+          <div class="chart-title">Train / Val / Test Split (Temporal — No Leakage)</div>
+          <div id="chart-split-bar"></div>
+          <p class="mt-2 mb-0" style="font-size:0.8rem;color:#94a3b8">Sorted by <code>TransactionDT</code> before splitting. Earlier transactions train the model; later ones test it — mirroring real deployment where the model never sees the future.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Approach ──────────────────────────────────────────────────────────── -->
+<section id="approach" class="section-alt">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">03 — Strategy & Architecture</span>
+      <h2 class="section-title">Why Graph Neural Networks for Fraud?</h2>
+    </div>
+    <p class="section-desc">Fraudsters don't act alone — they reuse infrastructure. Two stolen cards sharing the same device fingerprint or email domain is a signal invisible to per-transaction models but obvious in a graph.</p>
+
+    <div class="row g-4 mt-2">
+      <div class="col-md-6">
+        <div class="approach-card">
+          <div class="approach-num">01</div>
+          <h5>Heterogeneous Transaction Graph</h5>
+          <p>We build a graph where <strong>transaction nodes</strong> connect to entity nodes (cards, addresses, email domains, devices) via typed edges. Two cards sharing a device become graph neighbors — the GNN propagates fraud signals across this structure.</p>
+          <div class="graph-schema">
+            <span class="gs-node txn">Transaction</span>
+            <span class="gs-arrow">→</span>
+            <span class="gs-node card">Card</span>
+            <span class="gs-sep">|</span>
+            <span class="gs-node addr">Address</span>
+            <span class="gs-sep">|</span>
+            <span class="gs-node email">Email</span>
+            <span class="gs-sep">|</span>
+            <span class="gs-node dev">Device</span>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="approach-card">
+          <div class="approach-num">02</div>
+          <h5>Graph Attention Network (GAT)</h5>
+          <p>GAT learns <em>attention weights</em> per neighbor — not all connections are equally suspicious. A card sharing an email with 2 other cards is more suspicious than sharing with 2,000. Attention captures this asymmetry automatically.</p>
+          <div class="arch-detail">3-layer HeteroConv · 4 attention heads · 128 hidden dims · Focal loss (α=0.965, γ=2.0)</div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="approach-card">
+          <div class="approach-num">03</div>
+          <h5>LightGBM Tabular Baseline</h5>
+          <p>GBDT excels at tabular data with mixed feature types. We use it as a strong standalone model and as a <strong>stacking input</strong> to the ensemble — it captures feature-level patterns the GNN may miss from the 428-feature engineered set.</p>
+          <div class="arch-detail">640 trees · num_leaves=63 · is_unbalance=True · Early stopping on val AUC</div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="approach-card">
+          <div class="approach-num">04</div>
+          <h5>Stacking Ensemble</h5>
+          <p>GNN scores (graph structure) + LightGBM scores (feature patterns) → Logistic Regression meta-learner. Each model brings orthogonal signal — the ensemble consistently outperforms either alone on imbalanced fraud data.</p>
+          <div class="arch-detail">Meta-learner trained on val set predictions · Threshold optimised by F1</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-header mt-5">
+      <h4 class="section-title" style="font-size:1.25rem">Key Engineering Decisions</h4>
+    </div>
+    <div class="row g-3 mt-1">
+      <div class="col-md-4">
+        <div class="decision-card">
+          <div class="dec-label">Imbalance Handling</div>
+          <div class="dec-detail">Fraud nodes oversampled <strong>27×</strong> in NeighborLoader seed indices. Focal Loss with <strong>α=0.965</strong> (tuned to 27:1 class ratio) focuses gradient on hard-to-classify fraud cases. LightGBM uses <code>is_unbalance=True</code>.</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="decision-card">
+          <div class="dec-label">No Data Leakage</div>
+          <div class="dec-detail">Temporal split by <code>TransactionDT</code>: 70% train → 15% val → 15% test, strictly ordered. Card-level aggregations computed on train set only and applied to val/test — no future information bleeds backward.</div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="decision-card">
+          <div class="dec-label">Graph Sparsity Control</div>
+          <div class="dec-detail">Entity groups with &gt;20 cards (e.g. "gmail.com" shared by thousands) are skipped — they produce O(n²) edges and are not indicative of fraud rings. Small tight groups are the signal.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Results ───────────────────────────────────────────────────────────── -->
+<section id="results" class="section-main">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">04 — Results</span>
+      <h2 class="section-title">Model Performance</h2>
+    </div>
+    <p class="section-desc">Two metrics matter most for imbalanced fraud detection: <strong>ROC-AUC</strong> (overall discrimination) and <strong>PR-AUC</strong> (precision-recall trade-off at minority class — stricter and more informative at 3.5% fraud rate).</p>
+
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-3"><div class="result-pill"><span class="rp-label">LightGBM AUC</span><span class="rp-val" id="val-lgbm-auc">—</span></div></div>
+      <div class="col-6 col-md-3"><div class="result-pill"><span class="rp-label">GNN AUC</span><span class="rp-val" id="val-gnn-auc">—</span></div></div>
+      <div class="col-6 col-md-3"><div class="result-pill highlight"><span class="rp-label">Ensemble AUC</span><span class="rp-val" id="val-ens-auc">—</span></div></div>
+      <div class="col-6 col-md-3"><div class="result-pill"><span class="rp-label">Ensemble PR-AUC</span><span class="rp-val" id="val-ens-prauc">—</span></div></div>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-md-6">
+        <div class="chart-card">
+          <div class="chart-title">ROC-AUC vs PR-AUC by Model</div>
+          <div id="chart-auc-bar"></div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="chart-card">
+          <div class="chart-title">ROC Curves</div>
+          <div id="chart-roc"></div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="chart-card">
+          <div class="chart-title">Precision–Recall Curves <span style="font-size:0.75rem;color:#6b7280">(stricter metric for 3.5% fraud)</span></div>
+          <div id="chart-pr"></div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="chart-card">
+          <div class="chart-title">Ensemble Threshold Metrics</div>
+          <div id="chart-threshold-metrics"></div>
+          <p class="mt-2 mb-0" style="font-size:0.8rem;color:#94a3b8">Threshold optimised by F1 score on test set (not default 0.5 — default is wrong for imbalanced data).</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-header mt-5">
+      <h4 class="section-title" style="font-size:1.25rem">SHAP Explainability</h4>
+      <p class="section-desc">SHAP (SHapley Additive exPlanations) reveals <em>why</em> the model predicts fraud for a specific transaction. Critical for regulatory compliance in financial services.</p>
+    </div>
+    <div class="row g-4">
+      <div class="col-md-5">
+        <div class="chart-card">
+          <div class="chart-title">Global Feature Importance (mean |SHAP|)</div>
+          <div id="chart-shap-importance"></div>
+        </div>
+      </div>
+      <div class="col-md-7">
+        <div class="chart-card">
+          <div class="chart-title">SHAP Waterfall — Fraud Transaction Sample <span style="font-size:0.75rem;color:#ef4444">🔴 Red = increases fraud probability</span></div>
+          <div id="chart-shap-waterfall-fraud"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Fraud Rings ───────────────────────────────────────────────────────── -->
+<section id="fraud-rings" class="section-alt">
+  <div class="container-fluid px-4">
+    <div class="section-header">
+      <span class="section-tag">05 — Fraud Ring Detection</span>
+      <h2 class="section-title">Uncovering Organised Fraud Networks</h2>
+    </div>
+    <p class="section-desc">After training the GNN, we extract node embeddings and run <strong>Louvain community detection</strong> on the card co-occurrence graph. Communities with fraud rates significantly above the 3.5% baseline are flagged as fraud rings.</p>
+
+    <div class="row g-4 mt-2">
+      <div class="col-lg-8">
+        <div class="chart-card p-3">
+          <div class="chart-title">Fraud Ring Graph — Card Co-occurrence Communities</div>
+          <div id="fraud-ring-graph"></div>
+          <p class="mt-2 mb-0" style="font-size:0.78rem;color:#6b7280">Each node = a card. Edges = shared email domain, address, or device type. Node size scales with fraud rate. Hover for details.</p>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="chart-card h-100 d-flex flex-column">
+          <div class="chart-title">Detected Communities</div>
+          <div id="ring-summary-table" class="flex-grow-1"></div>
+          <div class="callout mt-3" style="font-size:0.82rem">
+            <strong>Baseline fraud rate: 3.5%.</strong> Communities above this threshold represent statistically elevated risk clusters. The top ring at <span id="top-ring-rate" style="color:#ef4444;font-weight:700">—</span> fraud rate is <span id="top-ring-mult">—</span>× the baseline.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Live Prediction ───────────────────────────────────────────────────── -->
+<section id="predict" class="section-main">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">06 — Live Demo</span>
+      <h2 class="section-title">Real-Time Fraud Prediction</h2>
+    </div>
+    <p class="section-desc">Submit a transaction to the trained ensemble endpoint. The model returns fraud probability from both LightGBM and GNN components.</p>
+    <div class="row g-4">
+      <div class="col-md-5">
+        <div class="chart-card">
+          <form id="predict-form">
+            <div class="mb-3">
+              <label class="form-label">Transaction Amount (USD)</label>
+              <input type="number" class="form-control" id="input-amount" value="150" step="0.01" min="0" />
+            </div>
+            <div class="row g-2 mb-3">
+              <div class="col-6">
+                <label class="form-label">Hour of Day</label>
+                <input type="number" class="form-control" id="input-hour" value="2" min="0" max="23" />
+                <div style="font-size:0.75rem;color:#6b7280;margin-top:4px">Hours 0–5 historically higher risk</div>
+              </div>
+              <div class="col-6">
+                <label class="form-label">Day of Week</label>
+                <select class="form-select" id="input-dow">
+                  <option value="0">Monday</option><option value="1">Tuesday</option>
+                  <option value="2" selected>Wednesday</option><option value="3">Thursday</option>
+                  <option value="4">Friday</option><option value="5">Saturday</option><option value="6">Sunday</option>
+                </select>
+              </div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Product Code</label>
+              <select class="form-select" id="input-product">
+                <option value="W">W — Web purchase</option><option value="H">H — Home</option>
+                <option value="C">C — Card present</option><option value="S">S — Store</option><option value="R">R — Retail</option>
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Purchaser Email Domain</label>
+              <input type="text" class="form-control" id="input-email" value="anonymous.com" />
+            </div>
+            <button type="submit" class="btn btn-primary w-100 mt-1">Run Fraud Prediction →</button>
+          </form>
+        </div>
+      </div>
+      <div class="col-md-7">
+        <div class="chart-card h-100" id="prediction-result">
+          <div class="text-center py-4" id="predict-placeholder" style="color:#6b7280">
+            <div style="font-size:2rem;margin-bottom:8px">🔍</div>
+            <p>Submit a transaction to see the fraud probability score.</p>
+          </div>
+          <div id="predict-output" class="d-none">
+            <div class="text-center mb-4">
+              <div class="risk-badge" id="risk-badge">—</div>
+              <div class="fraud-prob mt-2" id="fraud-prob">—</div>
+              <div style="color:#6b7280;font-size:0.85rem">Ensemble Fraud Probability</div>
+            </div>
+            <div class="row g-3 text-center mb-3">
+              <div class="col-6"><div class="score-card"><div class="score-val" id="score-lgbm">—</div><div class="score-label">LightGBM</div></div></div>
+              <div class="col-6"><div class="score-card"><div class="score-val" id="score-gnn">—</div><div class="score-label">GNN (GAT)</div></div></div>
+            </div>
+            <div id="chart-risk-gauge"></div>
+          </div>
+          <div id="predict-error" class="d-none alert alert-warning mt-3"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Future Work ───────────────────────────────────────────────────────── -->
+<section class="section-alt">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">07 — What's Next</span>
+      <h2 class="section-title">Limitations & Future Improvements</h2>
+    </div>
+    <div class="row g-4 mt-1">
+      <div class="col-md-4">
+        <div class="future-card">
+          <h6>Concept Drift Detection</h6>
+          <p>Fraud patterns evolve — fraudsters adapt when a technique gets blocked. Adding ADWIN/DDM drift monitoring would flag when model performance degrades on recent transactions, triggering retraining.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="future-card">
+          <h6>Temporal Graph Attention</h6>
+          <p>Current GAT treats the graph as static. A temporal variant would weight recent connections more heavily, capturing that two cards sharing a device <em>yesterday</em> is more suspicious than sharing one <em>last year</em>.</p>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="future-card">
+          <h6>Richer Graph Structure</h6>
+          <p>Currently using 4 entity types (card, address, email, device). Adding merchant IDs, IP addresses, and transaction amounts as edge weights would significantly enrich the graph signal for ring detection.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ────────────────────────────────────────────────────────────── -->
+<footer>
+  <div class="container text-center">
+    <p class="mb-1"><strong>FraudSense</strong> — Graph Neural Network Credit Card Fraud Detection</p>
+    <p style="color:#4b5563;font-size:0.82rem">IEEE-CIS Fraud Detection Dataset &nbsp;·&nbsp; PyTorch Geometric &nbsp;·&nbsp; LightGBM &nbsp;·&nbsp; SHAP &nbsp;·&nbsp; D3.js</p>
+  </div>
+</footer>
+
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="/FraudSense/static/js/main.js"></script>
 </body>
-</html> 
+</html>
