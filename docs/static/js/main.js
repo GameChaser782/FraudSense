@@ -5,7 +5,9 @@ const STATIC = window.FRAUDSENSE_STATIC === true;
 const BASE   = window.FRAUDSENSE_BASE   || '';
 
 function apiUrl(endpoint) {
-  return STATIC ? `${BASE}/data/${endpoint}.json` : `${BASE}/api/${endpoint}`;
+  if (!STATIC) return `${BASE}/api/${endpoint}`;
+  const staticEndpoint = endpoint === 'fraud-rings' ? 'fraud_rings' : endpoint;
+  return `${BASE}/data/${staticEndpoint}.json`;
 }
 
 const COLORS = {
