@@ -54,7 +54,20 @@ def main():
             print(f"WARNING: {src_path} not found — run train_all.py first")
 
     # Rewrite index.html: replace /api/* with /data/*.json
-    html = (ROOT / "webapp" / "templates" / "index.html").read_text()
+    template_candidates = [
+        ROOT / "webapp" / "templates" / "index.html",
+        ROOT / "index.html",
+    ]
+    html_path = next((path for path in template_candidates if path.exists()), None)
+    if html_path is None:
+        candidates = "\n".join(f"  - {path}" for path in template_candidates)
+        raise FileNotFoundError(
+            "Static export could not find an HTML template. Checked:\n"
+            f"{candidates}\n"
+            "Commit webapp/templates/index.html to the repository so CI can export the site."
+        )
+
+    html = html_path.read_text()
     html = html.replace("src='/static/", "src='/FraudSense/static/")
     html = html.replace('src="/static/', 'src="/FraudSense/static/')
     html = html.replace("href='/static/", "href='/FraudSense/static/")

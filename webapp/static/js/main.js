@@ -361,8 +361,7 @@ async function handlePredict(e) {
   document.getElementById('predict-error').classList.add('d-none');
 
   if (STATIC) {
-    document.getElementById('predict-error').textContent =
-      'Live prediction requires running the backend locally: uvicorn webapp.app:app --reload';
+    document.getElementById('predict-error').textContent = 'Models are not live right now.';
     document.getElementById('predict-error').classList.remove('d-none');
     return;
   }
